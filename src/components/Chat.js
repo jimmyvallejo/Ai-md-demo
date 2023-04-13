@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Configuration, OpenAIApi } from "openai";
+import { Dna } from "react-loader-spinner";
 
 const Chat = () => {
   const configuration = new Configuration({
@@ -39,39 +40,59 @@ const Chat = () => {
 
   const [conversation, setConversation] = useState([]);
 
-  useEffect(() => {
-    const fetchFirst = async () => {
-      try {
-        const messages = [
-          {
-            role: "user",
-            content:
-              "Please greet me as if I am a patient who just walked in."
-          },
-        ];
-        const result = await getChatCompletion(messages);
-        console.log(result.jsonBody.completion.content)
-        setConversation([
-          { role: "user", content: messages[0].content },
-          {
-            role: "assistant",
-            content: result.jsonBody.completion.content,
-          },
-        ]);
-      } catch (error) {
-        console.error("Error fetching first response:", error);
-      }
-    };
+  const [isLoading, SetLoading] = useState(null);
 
-    fetchFirst();
-  }, []);
+  const containerRef = useRef(null);
+
+
+    useEffect(() => {
+      const fetchFirst = async () => {
+        try {
+          const messages = [
+            {
+              role: "user",
+              content:
+                "Please greet me as if I am a patient who just walked in.",
+            },
+          ];
+          const result = await getChatCompletion(messages);
+          console.log(result.jsonBody.completion.content);
+          setConversation([
+            { role: "user", content: messages[0].content },
+            {
+              role: "assistant",
+              content: result.jsonBody.completion.content,
+            },
+          ]);
+        } catch (error) {
+          console.error("Error fetching first response:", error);
+        }
+      };
+
+      fetchFirst();
+    }, []);
+
+    useEffect(() => {
+      scrollToBottom();
+    }, [conversation]);
+
+
+  const scrollToBottom = () => {
+    if (!isLoading) {
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        left: 0,
+        behavior: "smooth",
+      });
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    SetLoading(true);
     const result = await getChatCompletion(
       conversation.concat([{ role: "user", content: userInput }])
     );
-
     setConversation((prevConversation) => [
       ...prevConversation,
       { role: "user", content: userInput },
@@ -80,13 +101,32 @@ const Chat = () => {
         content: result.jsonBody.completion.content,
       },
     ]);
-    setUserInput('')
+    SetLoading(null);
+    setUserInput("");
   };
+
 
   return (
     <div className="GPT">
       <h1 className="MD">AI MD</h1>
-      <div className="form">
+
+      <div className="response">
+        {isLoading ? (
+          <Dna color="#00BFFF" height={100} width={100} />
+        ) : (
+          conversation.slice(1).map((elem, index) => {
+            return (
+              <p key={index}>
+                <strong>
+                  {elem.role === "user" ? "You: " : "AI Doctor: "}
+                </strong>
+                {elem.content}
+              </p>
+            );
+          })
+        )}
+      </div>
+      <div className="form" ref={containerRef}>
         <form onSubmit={handleSubmit}>
           <input
             className="input"
@@ -98,16 +138,6 @@ const Chat = () => {
             Submit
           </button>
         </form>
-      </div>
-      <div className="response">
-        {conversation.slice(1).map((elem, index) => {
-          return (
-            <p key={index}>
-              <strong>{elem.role === "user" ? "You: " : "AI Doctor: "}</strong>
-              {elem.content}
-            </p>
-          );
-        })}
       </div>
     </div>
   );
